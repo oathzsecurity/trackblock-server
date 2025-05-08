@@ -5,10 +5,27 @@ const PORT = process.env.PORT || 8080;
 app.use(express.raw({ type: "*/*" }));
 
 app.post("/", (req, res) => {
-  console.log("✅ Received POST request");
-  console.log("📦 Payload:", req.body.toString());
-  res.status(200).send("All good, mate.");
+  try {
+    const raw = req.body;
+    console.log("📦 Raw payload buffer:", raw);
+    const text = raw.toString();
+    console.log("🔍 As text:", text);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+      console.log("✅ JSON parsed:", parsed);
+    } catch (e) {
+      console.log("❌ Not valid JSON");
+    }
+
+    res.status(200).send("Received");
+  } catch (err) {
+    console.error("Server error:", err);
+    res.status(500).send("Server error");
+  }
 });
+
 
 app.listen(PORT, () => {
   console.log(`🚀 Server listening on port ${PORT}`);
