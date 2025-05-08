@@ -6,18 +6,17 @@ app.use(express.text({ type: "*/*" }));
 
 app.post("/", (req, res) => {
   try {
-    const raw = req.body;
-    console.log("📦 Raw payload buffer:", raw);
+    const body = req.body;
+    console.log("📦 Raw body:", body);
 
-    let parsed;
     try {
-      parsed = JSON.parse(raw);
-      console.log("✅ JSON parsed:", parsed);
+      const parsed = JSON.parse(body);
+      console.log("✅ Parsed JSON:", parsed);
     } catch (e) {
-      console.log("❌ Not valid JSON:", e.message);
+      console.log("❌ Failed to parse JSON");
     }
 
-    res.status(200).send("Received!");
+    res.status(200).send("Received");
   } catch (err) {
     console.error("💥 Server error:", err);
     res.status(500).send("Server error");
