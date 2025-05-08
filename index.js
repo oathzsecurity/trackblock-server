@@ -2,34 +2,39 @@ const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Accept raw body data regardless of content-type
+// Log all requests regardless of type
+app.use((req, res, next) => {
+  console.log(`➡️ ${req.method} ${req.url}`);
+  next();
+});
+
+// Accept raw body of any type
 app.use(express.raw({ type: "*/*" }));
 
-// Listen on root path "/"
 app.post("/", (req, res) => {
   try {
+    console.log("📥 HEADERS:", req.headers);
+
     const raw = req.body;
-    console.log("📦 Raw payload buffer:", raw);
+    console.log("📦 Raw Buffer:", raw);
 
     const text = raw.toString();
     console.log("🔍 As text:", text);
 
-    let parsed;
     try {
-      parsed = JSON.parse(text);
-      console.log("✅ JSON parsed:", parsed);
+      const json = JSON.parse(text);
+      console.log("✅ JSON Parsed:", json);
     } catch (e) {
-      console.log("❌ Not valid JSON");
+      console.log("❌ Failed to parse JSON");
     }
 
-    res.status(200).send("✅ Received loud and clear!");
+    res.status(200).send("✅ OK from root path");
   } catch (err) {
     console.error("💥 Server error:", err);
-    res.status(500).send("Server error");
+    res.status(500).send("💥 Internal Server Error");
   }
 });
 
-// Boot it up
 app.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
+  console.log(`🚀 Server ready on port ${PORT}`);
 });
