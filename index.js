@@ -1,21 +1,19 @@
 const express = require("express");
+const https = require("https");
+const fs = require("fs");
 const app = express();
-const port = process.env.PORT || 8080;
+const PORT = process.env.PORT || 8080;
 
-app.use(express.json()); // Automatically parse JSON
+// Use express.raw to get the raw body (since the ESP doesn't send proper headers for JSON parsing)
+app.use(express.raw({ type: "*/*" }));
 
 app.post("/", (req, res) => {
-  const { message } = req.body;
+  console.log("✅ Received POST request");
+  console.log("🔍 Raw body:", req.body.toString());  // Convert buffer to string
 
-  if (message) {
-    console.log("📡 Received message:", message);
-    res.status(200).send("✅ Message received");
-  } else {
-    console.log("⚠️ No message field in body");
-    res.status(400).send("❌ Bad request: No 'message' field");
-  }
+  res.status(200).send("👍 Received");
 });
 
-app.listen(port, () => {
-  console.log(`🚀 Server listening on port ${port}`);
+app.listen(PORT, () => {
+  console.log(`🚀 Server listening on port ${PORT}`);
 });
