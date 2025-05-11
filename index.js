@@ -2,21 +2,19 @@ const express = require("express");
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Accept plain text or JSON (ESP32-safe)
-app.use(express.text({ type: "*/*" }));
+app.use(express.json());
 
 app.post("/", (req, res) => {
   console.log("📩 POST received to /");
-  console.log("📦 Raw body:", req.body);
+  console.log("📦 Headers:", req.headers);
+  console.log("📦 Body:", req.body);
 
-  try {
-    const parsed = JSON.parse(req.body);
-    console.log("✅ Parsed JSON:", parsed);
-    res.status(200).send("Received");
-  } catch (err) {
-    console.log("❌ Failed to parse JSON:", err.message);
-    res.status(400).send("Bad JSON");
+  if (!req.body || typeof req.body !== "object") {
+    console.log("❌ Invalid JSON or empty body");
+    return res.status(400).send("Bad Request");
   }
+
+  res.status(200).send("✅ Message received by server.");
 });
 
 app.listen(PORT, () => {
