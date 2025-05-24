@@ -1,22 +1,29 @@
-const express = require("express");
+const express = require('express');
 const app = express();
-const PORT = process.env.PORT || 8080;
+const port = process.env.PORT || 3000;
+
+let latestPostReceived = null;
 
 app.use(express.json());
 
-app.post("/", (req, res) => {
-  console.log("📩 POST received to /");
-  console.log("📦 Headers:", req.headers);
-  console.log("📦 Body:", req.body);
-
-  if (!req.body || typeof req.body !== "object") {
-    console.log("❌ Invalid JSON or empty body");
-    return res.status(400).send("Bad Request");
-  }
-
-  res.status(200).send("✅ Message received by server.");
+app.post('/track', (req, res) => {
+  latestPostReceived = {
+    time: new Date().toISOString(),
+    body: req.body,
+    headers: req.headers
+  };
+  console.log("🔥 TRACK POST:", JSON.stringify(req.body, null, 2));
+  res.status(200).send('Trackblock POST received!');
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server listening on port ${PORT}`);
+app.get('/test-log', (req, res) => {
+  if (latestPostReceived) {
+    res.json(latestPostReceived);
+  } else {
+    res.send("No data received yet.");
+  }
+});
+
+app.listen(port, () => {
+  console.log(`🚀 Trackblock backend running on port ${port}`);
 });
