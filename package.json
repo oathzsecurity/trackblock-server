@@ -1,0 +1,13 @@
+{
+  "name": "trackblock-server",
+  "version": "1.0.0",
+  "description": "Trackblock backend for data collection and logging",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
