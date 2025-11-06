@@ -1,5 +1,7 @@
 // ============================
-// Trackblock Ingest Server v2
+// Trackblock Ingest Server v3
+// HTTP allowed ONLY on /data
+// Everything else stays HTTPS
 // ============================
 
 import express from "express";
@@ -23,6 +25,19 @@ if (!fs.existsSync(logFile)) {
     fs.writeFileSync(logFile, JSON.stringify([{ init: "true" }], null, 2));
     console.log("✅ Log file created");
 }
+
+// ---------- HTTPS enforcement middleware ----------
+app.use((req, res, next) => {
+    // Allow HTTP ONLY for /data endpoint (for SIM7600)
+    if (req.path === "/data") return next();
+
+    // Reject any other HTTP request and force redirect to HTTPS
+    if (req.headers["x-forwarded-proto"] !== "https") {
+        return res.redirect("https://" + req.headers.host + req.url);
+    }
+
+    next();
+});
 
 // ---------- Root health check ----------
 app.get("/", (req, res) => {
