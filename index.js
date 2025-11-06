@@ -1,4 +1,4 @@
-// === TRACKBLOCK SERVER (Production Stable Build) ===
+// === TRACKBLOCK SERVER (Production Stable Build - HTTP Safe for SIM) ===
 
 import express from "express";
 import fs from "fs";
@@ -13,6 +13,18 @@ const PORT = process.env.PORT || 8080;
 // Middleware
 app.use(express.json());
 
+// ✅ Bypass HTTPS redirect for /data POST so SIM7600 can use plain HTTP
+app.use((req, res, next) => {
+  if (req.path === "/data") {
+    return next(); // allow HTTP for modem
+  }
+  // If Railway forces HTTPS, allow it for all other routes
+  if (req.headers["x-forwarded-proto"] === "http") {
+    return res.redirect("https://" + req.headers.host + req.url);
+  }
+  next();
+});
+
 // Ensure log folder exists
 const logDir = path.join(__dirname, "data", "logs");
 fs.mkdirSync(logDir, { recursive: true });
@@ -23,7 +35,7 @@ app.get("/", (req, res) => {
   res.send("✅ Trackblock server is live and healthy!");
 });
 
-// POST route
+// POST route (SIM7600 uses this - stays HTTP)
 app.post("/data", (req, res) => {
   const payload = req.body;
   console.log("📦 New Trackblock payload:", payload);
