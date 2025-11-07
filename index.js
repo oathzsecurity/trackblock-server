@@ -1,90 +1,65 @@
-// ============================
-// Trackblock Ingest Server v4
-// HTTP allowed on /data + /logs
-// Everything else forced to HTTPS
-// ============================
+// === Trackblock Ingest Server ===
+// Lightweight HTTP ingest for GPS + MAC address data from ESP32/SIM modules
 
 import express from "express";
-import fs from "fs";
-import path from "path";
-import cors from "cors";
 import bodyParser from "body-parser";
+import cors from "cors";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// ---------- Middleware ----------
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// ---------- Log file path ----------
-const logFile = path.join(process.cwd(), "data", "trackblock-log.json");
+// In-memory logs (temporary)
+let logs = [
+  { init: "true" }
+];
 
-// Ensure log file exists
-if (!fs.existsSync(logFile)) {
-    fs.writeFileSync(logFile, JSON.stringify([{ init: "true" }], null, 2));
-    console.log("✅ Log file created");
-}
-
-// ---------- HTTPS enforcement middleware ----------
-app.use((req, res, next) => {
-    const allowed = ["/data", "/logs"];
-
-    // If request is for an allowed endpoint → skip redirect
-    if (allowed.includes(req.path)) {
-        return next();
-    }
-
-    // Force HTTPS for everything else
-    if (req.headers["x-forwarded-proto"] !== "https") {
-        return res.redirect("https://" + req.headers.host + req.url);
-    }
-
-    next();
-});
-
-// ---------- Root health check ----------
+// Root route (sanity check)
 app.get("/", (req, res) => {
-    res.status(200).send("✅ Trackblock server is live & healthy!");
+  res.json({ status: "ok", message: "Trackblock HTTP endpoint alive ✅" });
 });
 
-// ---------- Return full logs ----------
-app.get("/logs", (req, res) => {
-    const logs = JSON.parse(fs.readFileSync(logFile));
-    res.json(logs);
-});
-
-// ---------- DATA INGEST ENDPOINT ----------
+// POST endpoint for device ingestion
 app.post("/data", (req, res) => {
-    try {
-        const payload = req.body || {};
+  try {
+    const payload = req.body;
+    logs.push({
+      ...payload,
+      timestamp: new Date().toISOString()
+    });
 
-        // Add timestamp field server side
-        payload.receivedAt = new Date().toISOString();
+    console.log("📩 Data received:", payload);
 
-        // Read existing log
-        const existing = JSON.parse(fs.readFileSync(logFile));
-
-        // Append new entry
-        existing.push(payload);
-
-        // Save back to file
-        fs.writeFileSync(logFile, JSON.stringify(existing, null, 2));
-
-        console.log("📥 New payload received:", payload);
-
-        res.status(200).json({
-            status: "success",
-            message: "Data received",
-            received: payload,
-        });
-    } catch (err) {
-        console.error("❌ Error handling payload:", err);
-        res.status(500).json({ status: "error", message: "Server error" });
-    }
+    return res.json({
+      status: "success",
+      message: "Data received",
+      received: payload
+    });
+  } catch (err) {
+    console.error("❌ Error handling POST /data", err);
+    return res.status(500).json({
+      status: "error",
+      message: "Server error"
+    });
+  }
 });
 
-// ---------- Start server ----------
-app.listen(PORT, () => {
-    console.log(`🚀 Trackblock ingest running on port ${PORT}`);
+// View logs
+app.get("/logs", (req, res) => {
+  res.json(logs);
+});
+
+// Clear logs
+app.delete("/logs", (req, res) => {
+  logs = [];
+  res.json({ status: "cleared" });
+});
+
+// === Server binding ===
+// IMPORTANT: bind to 0.0.0.0 so Railway TCP proxy can reach it
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Trackblock ingest running on port ${PORT}`);
 });
