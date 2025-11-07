@@ -1,48 +1,46 @@
-// ============================
-// Trackblock HTTP Proxy (for SIM7600)
-// ============================
+/**
+ * proxy.js
+ * Lightweight HTTP-only endpoint for SIM7600 (no HTTPS, no redirect)
+ */
 
-import express from "express";
-import fetch from "node-fetch";
-import cors from "cors";
-import bodyParser from "body-parser";
+const http = require("http");
+const fetch = (...args) => import("node-fetch").then(({default: fetch}) => fetch(...args));
 
-const app = express();
-const PORT = process.env.PORT || 8080;
+const TARGET = process.env.UPSTREAM_URL || "http://localhost:3000/data"; // where we forward the payload
 
-// Target real HTTPS ingest server
-const FORWARD_URL = "https://trackblock-server-production.up.railway.app/data";
+const PORT = process.env.PORT_PROXY || 8080;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
+const server = http.createServer(async (req, res) => {
+  if (req.method === "POST" && req.url === "/data") {
+    let body = "";
+    req.on("data", chunk => (body += chunk.toString()));
+    req.on("end", async () => {
+      console.log("📩 Incoming device POST:", body);
 
-// Health check
-app.get("/", (req, res) => {
-  res.send("✅ Trackblock HTTP proxy is live (no TLS, no redirect)");
-});
+      try {
+        const upstream = await fetch(TARGET, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body
+        });
 
-// Proxy endpoint
-app.post("/data", async (req, res) => {
-  try {
-    console.log("📥 Incoming proxy payload:", req.body);
+        const text = await upstream.text();
+        console.log("✅ Forwarded to upstream, response:", upstream.status, text);
 
-    const upstream = await fetch(FORWARD_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req.body),
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, status: upstream.status }));
+      } catch (err) {
+        console.error("❌ Forwarding error:", err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: err.toString() }));
+      }
     });
-
-    const responseText = await upstream.text();
-    console.log("📤 Forwarded → HTTPS server response:", responseText);
-
-    res.status(200).send("✅ Proxy delivered payload");
-  } catch (err) {
-    console.error("❌ Proxy error:", err);
-    res.status(500).send("Proxy failed");
+  } else {
+    res.writeHead(404);
+    res.end("Not found");
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 HTTP proxy running on port ${PORT}`);
-});
+server.listen(PORT, () =>
+  console.log(`🛰️  SIM7600 HTTP listener active on port ${PORT}`)
+);
